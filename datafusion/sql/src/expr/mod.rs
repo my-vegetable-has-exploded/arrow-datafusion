@@ -44,6 +44,7 @@ use datafusion_expr::{
 use sqlparser::ast::{ArrayAgg, Expr as SQLExpr, JsonOperator, TrimWhereField, Value};
 use sqlparser::parser::ParserError::ParserError;
 
+/// Note@wy stack handle for operator or join
 impl<'a, S: ContextProvider> SqlToRel<'a, S> {
     pub(crate) fn sql_expr_to_logical_expr(
         &self,
@@ -116,16 +117,19 @@ impl<'a, S: ContextProvider> SqlToRel<'a, S> {
     }
 
     /// Generate a relational expression from a SQL expression
+	/// Note@wy sql to expr process
     pub fn sql_to_expr(
         &self,
         sql: SQLExpr,
         schema: &DFSchema,
         planner_context: &mut PlannerContext,
     ) -> Result<Expr> {
+		println!("sql_to_expr {sql:#?}");
         let mut expr = self.sql_expr_to_logical_expr(sql, schema, planner_context)?;
         expr = self.rewrite_partial_qualifier(expr, schema);
         self.validate_schema_satisfies_exprs(schema, &[expr.clone()])?;
         let expr = expr.infer_placeholder_types(schema)?;
+		println!("sql_to_expr expr: {expr:#?}");
         Ok(expr)
     }
 
@@ -159,6 +163,7 @@ impl<'a, S: ContextProvider> SqlToRel<'a, S> {
 
     /// Internal implementation. Use
     /// [`Self::sql_expr_to_logical_expr`] to plan exprs.
+	/// Note@wy sql to expr process internal
     fn sql_expr_to_logical_expr_internal(
         &self,
         sql: SQLExpr,
@@ -521,6 +526,7 @@ impl<'a, S: ContextProvider> SqlToRel<'a, S> {
         }
     }
 
+	// parser for struct(col1, col2, ...)
     fn parse_struct(
         &self,
         values: Vec<SQLExpr>,

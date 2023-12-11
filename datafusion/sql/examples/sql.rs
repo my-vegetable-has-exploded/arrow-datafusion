@@ -30,23 +30,28 @@ use datafusion_sql::{
 use std::{collections::HashMap, sync::Arc};
 
 fn main() {
-    let sql = "SELECT \
-            c.id, c.first_name, c.last_name, \
-            COUNT(*) as num_orders, \
-            SUM(o.price) AS total_price, \
-            SUM(o.price * s.sales_tax) AS state_tax \
-        FROM customer c \
-        JOIN state s ON c.state = s.id \
-        JOIN orders o ON c.id = o.customer_id \
-        WHERE o.price > 0 \
-        AND c.last_name LIKE 'G%' \
-        GROUP BY 1, 2, 3 \
-        ORDER BY state_tax DESC";
+    // let sql = "SELECT \
+    //         c.id, c.first_name, c.last_name, \
+    //         COUNT(*) as num_orders, \
+    //         SUM(o.price) AS total_price, \
+    //         SUM(o.price * s.sales_tax) AS state_tax \
+    //     FROM customer c \
+    //     JOIN state s ON c.state = s.id \
+    //     JOIN orders o ON c.id = o.customer_id \
+    //     WHERE o.price > 0 \
+    //     AND c.last_name LIKE 'G%' \
+    //     GROUP BY 1, 2, 3 \
+    //     ORDER BY state_tax DESC";
+
+	// let sql = "SELECT struct(id, state) from customer;";
+	let sql = "SELECT * FROM customer WHERE struct(id) in (struct(1), struct(2));";
+	// let sql = "SELECT * FROM customer WHERE id in (1,2);";
 
     // parse the SQL
     let dialect = GenericDialect {}; // or AnsiDialect, or your own dialect ...
     let ast = Parser::parse_sql(&dialect, sql).unwrap();
     let statement = &ast[0];
+	println!("{:#?}", statement);
 
     // create a logical query plan
     let context_provider = MyContextProvider::new();
@@ -54,7 +59,7 @@ fn main() {
     let plan = sql_to_rel.sql_statement_to_plan(statement.clone()).unwrap();
 
     // show the plan
-    println!("{plan:?}");
+    println!("{plan:#?}");
 }
 
 struct MyContextProvider {

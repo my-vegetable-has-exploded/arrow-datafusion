@@ -852,6 +852,7 @@ impl BuiltinScalarFunction {
             },
 
             BuiltinScalarFunction::Struct => {
+				// Note@wy prepare struct type, and generate field name
                 let return_fields = input_expr_types
                     .iter()
                     .enumerate()

@@ -139,6 +139,7 @@ impl PhysicalExpr for ScalarFunctionExpr {
         Ok(true)
     }
 
+	// Note@wy how to evaluate the function, filter args & call the functionimplement
     fn evaluate(&self, batch: &RecordBatch) -> Result<ColumnarValue> {
         // evaluate the arguments, if there are no arguments we'll instead pass in a null array
         // indicating the batch size (as a convention)

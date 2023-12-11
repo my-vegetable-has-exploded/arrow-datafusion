@@ -433,6 +433,7 @@ pub fn create_physical_fun(
             make_scalar_function_inner(array_expressions::array_union)(args)
         }),
         // struct functions
+		// Note@wy struct function implementation for BuildinScalarFunction::Struct
         BuiltinScalarFunction::Struct => Arc::new(struct_expressions::struct_expr),
 
         // string functions
