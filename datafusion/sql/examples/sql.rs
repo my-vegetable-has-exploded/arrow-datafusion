@@ -46,12 +46,20 @@ fn main() {
 	// let sql = "SELECT struct(id, state) from customer;";
 	let sql = "SELECT * FROM customer WHERE struct(id) in (struct(1), struct(2));";
 	// let sql = "SELECT * FROM customer WHERE id in (1,2);";
+    // let sql = r#"SELECT * FROM customer WHERE id in ('1', '2');"#;
+    // let sql = r#"SELECT (1, 2);"#;
+    // let sql = r#"SELECT first_name, second_name FROM customer WHERE (first_name, second_name) in (('a', 'b'));"#;
+    // let sql = r#"SELECT first_name, second_name FROM customer;"#;
+    let sql = r#"SELECT customer.first_name, last_name FROM customer;"#;
+	let sql = r#"SELECT customer.first_name, last_name FROM customer WHERE customer.first_name = 'a';"#;
 
     // parse the SQL
     let dialect = GenericDialect {}; // or AnsiDialect, or your own dialect ...
     let ast = Parser::parse_sql(&dialect, sql).unwrap();
     let statement = &ast[0];
 	println!("{:#?}", statement);
+
+    println!("{:#?}", statement);
 
     // create a logical query plan
     let context_provider = MyContextProvider::new();

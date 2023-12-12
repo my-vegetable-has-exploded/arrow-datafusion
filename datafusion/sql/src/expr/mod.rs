@@ -125,11 +125,13 @@ impl<'a, S: ContextProvider> SqlToRel<'a, S> {
         planner_context: &mut PlannerContext,
     ) -> Result<Expr> {
 		println!("sql_to_expr {sql:#?}");
+		let sql_bak = sql.clone();
         let mut expr = self.sql_expr_to_logical_expr(sql, schema, planner_context)?;
+        println!("sql_to_expr:{:?} expr: {:?}", sql_bak, expr);
         expr = self.rewrite_partial_qualifier(expr, schema);
         self.validate_schema_satisfies_exprs(schema, &[expr.clone()])?;
         let expr = expr.infer_placeholder_types(schema)?;
-		println!("sql_to_expr expr: {expr:#?}");
+		println!("after rewrite sql_to_expr:{:?} expr: {:?}", sql_bak, expr);
         Ok(expr)
     }
 
