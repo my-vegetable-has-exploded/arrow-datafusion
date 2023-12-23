@@ -59,6 +59,7 @@ use datafusion_physical_plan::windows::{get_best_fitting_window, BoundedWindowAg
 
 use itertools::izip;
 
+//Note@wy optimizer rule for repartition
 /// The `EnforceDistribution` rule ensures that distribution requirements are
 /// met. In doing so, this rule will increase the parallelism in the plan by
 /// introducing repartitioning operators to the physical plan.
@@ -1142,6 +1143,7 @@ fn ensure_distribution(
 
             // When `repartition_file_scans` is set, attempt to increase
             // parallelism at the source.
+			// Note@wy for file scan, when repartition_file_scans is set, we will repartition the file scan, and the output_paritioning will be changed to target, so no more roundrobin will be added
             if repartition_file_scans && repartition_beneficial_stats {
                 if let Some(new_child) =
                     child.plan.repartitioned(target_partitions, config)?

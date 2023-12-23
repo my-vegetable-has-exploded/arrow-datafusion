@@ -519,6 +519,7 @@ impl FileOpener for ParquetOpener {
             // using metadata on the row groups
             let file_metadata = builder.metadata().clone();
             let predicate = pruning_predicate.as_ref().map(|p| p.as_ref());
+			//Note@wy parquet file row group pruning by range from repartition
             let mut row_groups = row_groups::prune_row_groups_by_statistics(
                 &file_schema,
                 builder.parquet_schema(),

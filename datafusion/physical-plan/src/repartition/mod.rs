@@ -181,6 +181,7 @@ impl BatchPartitioner {
                         .map(|_| UInt64Builder::with_capacity(batch.num_rows()))
                         .collect();
 
+					//Note@wy partition by hash for each row
                     for (index, hash) in hash_buffer.iter().enumerate() {
                         indices[(*hash % *partitions as u64) as usize]
                             .append_value(index as u64);
@@ -229,6 +230,7 @@ impl BatchPartitioner {
     }
 }
 
+//Note@wy repartition exec
 /// Maps `N` input partitions to `M` output partitions based on a
 /// [`Partitioning`] scheme.
 ///
@@ -495,6 +497,7 @@ impl ExecutionPlan for RepartitionExec {
         if state.channels.is_empty() {
             let (txs, rxs) = if self.preserve_order {
                 let (txs, rxs) =
+					//Note@wy n*m channel
                     partition_aware_channels(num_input_partitions, num_output_partitions);
                 // Take transpose of senders and receivers. `state.channels` keeps track of entries per output partition
                 let txs = transpose(txs);
@@ -675,6 +678,7 @@ impl RepartitionExec {
     /// output partitions based on the desired partitioning
     ///
     /// txs hold the output sending channels for each output partition
+	//Note@wy pull from input, then push to output using batch_iter
     async fn pull_from_input(
         input: Arc<dyn ExecutionPlan>,
         partition: usize,

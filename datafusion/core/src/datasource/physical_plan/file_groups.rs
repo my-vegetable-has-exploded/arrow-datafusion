@@ -23,6 +23,8 @@ use std::cmp::min;
 use std::collections::BinaryHeap;
 use std::iter::repeat_with;
 
+//Note@wy repartition for filesgroup
+//need to consider the preserved order
 /// Repartition input files into `target_partitions` partitions, if total file size exceed
 /// `repartition_file_min_size`
 ///
@@ -174,6 +176,7 @@ impl FileGroupPartitioner {
         self
     }
 
+	//Note@wy we can use this function to repartition the file
     /// Repartition input files according to the settings on this [`FileGroupPartitioner`].
     ///
     /// If no repartitioning is needed or possible, return `None`.
