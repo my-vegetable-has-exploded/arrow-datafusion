@@ -132,6 +132,7 @@ pub trait PruningStatistics {
     ) -> Option<BooleanArray>;
 }
 
+//Note@wy PrunePredicate is for plan, statistic will provide some information from storage...
 /// Used to prove that arbitrary predicates (boolean expression) can not
 /// possibly evaluate to `true` given information about a column provided by
 /// [`PruningStatistics`].
@@ -445,6 +446,7 @@ impl PruningPredicate {
     ///
     /// [`ExprSimplifier`]: crate::optimizer::simplify_expressions::ExprSimplifier
     pub fn prune<S: PruningStatistics>(&self, statistics: &S) -> Result<Vec<bool>> {
+		//Note@wy prunce literal_guarantees & preidict_expr
         let mut builder = BoolVecBuilder::new(statistics.num_containers());
 
         // Try to prove the predicate can't be true for the containers based on
@@ -750,6 +752,7 @@ impl From<Vec<(phys_expr::Column, StatisticsType, Field)>> for RequiredColumns {
     }
 }
 
+//Note@wy build record batch from statistics match the required columns
 /// Build a RecordBatch from a list of statistics, creating arrays,
 /// with one row for each PruningStatistics and columns specified in
 /// in the required_columns parameter.
@@ -903,6 +906,7 @@ impl<'a> PruningExpressionBuilder<'a> {
     }
 }
 
+//Note@wy rewrite_expr_to_prunable
 /// This function is designed to rewrite the column_expr to
 /// ensure the column_expr is monotonically increasing.
 ///
