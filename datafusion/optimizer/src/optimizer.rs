@@ -394,6 +394,9 @@ impl Optimizer {
         plan: &LogicalPlan,
         config: &dyn OptimizerConfig,
     ) -> Result<Option<LogicalPlan>> {
+        // Note@wy TopDown will check self first, then children(inputs)
+		// BottomUp will check children first, then self
+		// If apply_order is None, we need to recursively handle children in rule.
         match rule.apply_order() {
             Some(order) => match order {
                 ApplyOrder::TopDown => {
