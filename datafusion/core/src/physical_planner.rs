@@ -861,6 +861,7 @@ impl DefaultPhysicalPlanner {
                             // This depends on the invariant that logical schema field index MUST match
                             // with physical schema field index.
                             let physical_name = if let Expr::Column(col) = e {
+								// Note@wy datafusion use column index of record batch to access data in physical plan, but schema for logcial plan and physical plan may be different, so we need to use logical schema to get the index of column by comparing the name of column here
                                 match input_schema.index_of_column(col) {
                                     Ok(idx) => {
                                         // index physical field using logical field index

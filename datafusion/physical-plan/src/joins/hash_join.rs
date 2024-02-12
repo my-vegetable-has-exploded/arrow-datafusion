@@ -325,6 +325,7 @@ impl HashJoinExec {
 
         check_join_is_valid(&left_schema, &right_schema, &on)?;
 
+		// Note@wy build the schema and column_indices
         let (schema, column_indices) =
             build_join_schema(&left_schema, &right_schema, join_type);
 

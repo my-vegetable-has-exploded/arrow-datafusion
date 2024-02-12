@@ -1176,6 +1176,7 @@ pub(crate) fn apply_join_filter_to_indices(
 
 /// Returns a new [RecordBatch] by combining the `left` and `right` according to `indices`.
 /// The resulting batch has [Schema] `schema`.
+/// Note@wy reduce compute::take cost by add projection
 pub(crate) fn build_batch_from_indices(
     schema: &Schema,
     build_input_buffer: &RecordBatch,
