@@ -1874,6 +1874,7 @@ impl DefaultPhysicalPlanner {
 
     /// Optimize a physical plan by applying each physical optimizer,
     /// calling observer(plan, optimizer after each one)
+	/// Note@wy optimizer with rules from PhysicalOptimizer
     fn optimize_internal<F>(
         &self,
         plan: Arc<dyn ExecutionPlan>,
