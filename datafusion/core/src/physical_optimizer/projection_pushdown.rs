@@ -1236,7 +1236,9 @@ mod tests {
         Distribution, Partitioning, PhysicalExpr, PhysicalSortExpr,
         PhysicalSortRequirement, ScalarFunctionExpr,
     };
-    use datafusion_physical_plan::joins::SymmetricHashJoinExec;
+    use datafusion_physical_plan::joins::{
+        HashJoinExec, PartitionMode, SymmetricHashJoinExec,
+    };
     use datafusion_physical_plan::streaming::{PartitionStream, StreamingTableExec};
     use datafusion_physical_plan::union::UnionExec;
 
@@ -2038,6 +2040,89 @@ mod tests {
                 "    CsvExec: file_groups={1 group: [[x]]}, projection=[a, b, c, d, e], has_header=false",
         ];
         assert_eq!(get_plan_string(&after_optimize), expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_hash_join_after_projection() -> Result<()> {
+        let left_csv = create_simple_csv_exec();
+        let right_csv = create_simple_csv_exec();
+
+        let join: Arc<dyn ExecutionPlan> = Arc::new(HashJoinExec::try_new(
+            left_csv,
+            right_csv,
+            vec![(Arc::new(Column::new("b", 1)), Arc::new(Column::new("c", 2)))],
+            // b_left-(1+a_right)<=a_right+c_left
+            Some(JoinFilter::new(
+                Arc::new(BinaryExpr::new(
+                    Arc::new(BinaryExpr::new(
+                        Arc::new(Column::new("b_left_inter", 0)),
+                        Operator::Minus,
+                        Arc::new(BinaryExpr::new(
+                            Arc::new(Literal::new(ScalarValue::Int32(Some(1)))),
+                            Operator::Plus,
+                            Arc::new(Column::new("a_right_inter", 1)),
+                        )),
+                    )),
+                    Operator::LtEq,
+                    Arc::new(BinaryExpr::new(
+                        Arc::new(Column::new("a_right_inter", 1)),
+                        Operator::Plus,
+                        Arc::new(Column::new("c_left_inter", 2)),
+                    )),
+                )),
+                vec![
+                    ColumnIndex {
+                        index: 1,
+                        side: JoinSide::Left,
+                    },
+                    ColumnIndex {
+                        index: 0,
+                        side: JoinSide::Right,
+                    },
+                    ColumnIndex {
+                        index: 2,
+                        side: JoinSide::Left,
+                    },
+                ],
+                Schema::new(vec![
+                    Field::new("b_left_inter", DataType::Int32, true),
+                    Field::new("a_right_inter", DataType::Int32, true),
+                    Field::new("c_left_inter", DataType::Int32, true),
+                ]),
+            )),
+            &JoinType::Inner,
+            PartitionMode::Auto,
+            true,
+        )?);
+		// Looks like 
+		// SELECT t1.c as c_from_left, t1.b as b_from_left, t2.a as a_from_right, t1.a as a_from_left, t2.c as c_from_right FROM t1 JOIN t2 ON t1.b = t2.c WHERE t1.b - (1 + t2.a) <= t2.a + t1.c
+        let projection: Arc<dyn ExecutionPlan> = Arc::new(ProjectionExec::try_new(
+            vec![
+                (Arc::new(Column::new("c", 2)), "c_from_left".to_string()),
+                (Arc::new(Column::new("b", 1)), "b_from_left".to_string()),
+                (Arc::new(Column::new("a", 5)), "a_from_right".to_string()),
+                (Arc::new(Column::new("a", 0)), "a_from_left".to_string()),
+                (Arc::new(Column::new("c", 7)), "c_from_right".to_string()),
+            ],
+            join,
+        )?);
+        let initial = get_plan_string(&projection);
+        let expected_initial = [
+			"ProjectionExec: expr=[c@2 as c_from_left, b@1 as b_from_left, a@5 as a_from_right, a@0 as a_from_left, c@7 as c_from_right]", "  HashJoinExec: mode=Auto, join_type=Inner, on=[(b@1, c@2)], filter=b_left_inter@0 - 1 + a_right_inter@1 <= a_right_inter@1 + c_left_inter@2", "    CsvExec: file_groups={1 group: [[x]]}, projection=[a, b, c, d, e], has_header=false", "    CsvExec: file_groups={1 group: [[x]]}, projection=[a, b, c, d, e], has_header=false"
+            ];
+        assert_eq!(initial, expected_initial);
+
+        let after_optimize =
+            ProjectionPushdown::new().optimize(projection, &ConfigOptions::new())?;
+
+        // let expected = [
+        // 	"HashJoinExec: mode=Auto, join_type=Inner, on=[(b_from_left@1, c_from_right@1)], filter=b_left_inter@0 - 1 + a_right_inter@1 <= a_right_inter@1 + c_left_inter@2", "  ProjectionExec: expr=[c@2 as c_from_left, b@1 as b_from_left, a@0 as a_from_left]", "    CsvExec: file_groups={1 group: [[x]]}, projection=[a, b, c, d, e], has_header=false", "  ProjectionExec: expr=[a@0 as a_from_right, c@2 as c_from_right]", "    CsvExec: file_groups={1 group: [[x]]}, projection=[a, b, c, d, e], has_header=false"
+        //     ];
+		let exactly = get_plan_string(&after_optimize);
+		println!("after_optimize {:?}", exactly);
+        assert!(exactly.len() > 4);
 
         Ok(())
     }
