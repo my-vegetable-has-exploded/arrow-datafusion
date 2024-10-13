@@ -16,7 +16,7 @@
 // under the License.
 
 use std::any::Any;
-use std::collections::BTreeMap;
+// use std::collections::BTreeMap;
 use std::fmt::Formatter;
 use std::ops::Range;
 use std::sync::Arc;
@@ -50,6 +50,7 @@ use datafusion_physical_expr::equivalence::join_equivalence_properties;
 use datafusion_physical_expr::{Partitioning, PhysicalSortExpr, PhysicalSortRequirement};
 use futures::{ready, Stream};
 use parking_lot::Mutex;
+use roaring::RoaringBitmap;
 
 /// IEJoinExec is optimized join without any equijoin conditions in `ON` clause but with two or more inequality conditions.
 /// For more detail algorithm, see <https://vldb.org/pvldb/vol8/p2074-khayyat.pdf>
@@ -850,59 +851,34 @@ impl IEJoinStream {
     ) -> Result<(UInt64Array, UInt64Array)> {
         let mut left_builder = UInt64Builder::new();
         let mut right_builder = UInt64Builder::new();
-        // use btree map to maintain all p\[i\], for i in 0..j, map\[s\]=t means range \[s, t\) is valid
+        // use bitmap to maintain all p\[i\], for i in 0..j, map\[s\]=t means range \[s, t\) is valid
         // our target is to find all pair(i, j) that i<j and p\[i\] < p\[j\] and i from left table and j from right table here
-        let mut range_map = BTreeMap::<u64, u64>::new();
+        let mut bitmap = RoaringBitmap::new();
         for p in permutation.values().iter() {
             // get the index of original recordbatch
             let l1_index = unsafe { l1_indexes.value_unchecked(*p as usize) };
             if l1_index < 0 {
                 // index from left table
                 // insert p in to range_map
-                IEJoinStream::insert_range_map(&mut range_map, *p);
+                bitmap.insert(*p as u32);
                 continue;
             }
             // index from right table, remap to 0..m
             let right_index = (l1_index - 1) as u64;
-            for range in range_map.range(0..{ *p }) {
-                let (start, end) = range;
-                let (start, end) = (*start, std::cmp::min(*end, *p));
-                for left_l1_index in start..end {
-                    // get all p\[i\] in range(start, end) and remap it to original recordbatch index in left table
-                    left_builder.append_value(
-                        (-unsafe { l1_indexes.value_unchecked(left_l1_index as usize) }
-                            - 1) as u64,
-                    );
-                    // append right index
-                    right_builder.append_value(right_index);
+            for v in bitmap.iter() {
+                let v = v as u64;
+                if v >= *p {
+                    break;
                 }
+                // get all p\[i\] in bitmap and remap it to original recordbatch index in left table
+                left_builder.append_value(
+                    (-unsafe { l1_indexes.value_unchecked(v as usize) } - 1) as u64,
+                );
+                // append right index
+                right_builder.append_value(right_index);
             }
         }
         Ok((left_builder.finish(), right_builder.finish()))
-    }
-
-    fn insert_range_map(range_map: &mut BTreeMap<u64, u64>, p: u64) {
-        let mut range = (p, p + 1);
-        // merge it with next consecutive range
-        // for example, if range_map is [(1, 2), (3, 4), (5, 6)], then insert(2) will make it [(1, 2), (2, 4), (5, 6)]
-        if let Some(end) = range_map.get(&(p + 1)) {
-            range = (p, *end);
-            range_map.remove(&(p + 1));
-        }
-        let mut need_insert = true;
-        let up_range = range_map.range_mut(0..p);
-        // if previous range is consecutive, merge them
-        // follow the example, [(1, 2), (2, 4), (5, 6)] will be merged into [(1, 4), (5, 6)]
-        if let Some(head) = up_range.last() {
-            if head.1 == &p {
-                *head.1 = range.1;
-                need_insert = false;
-            }
-        }
-        // if this range is not consecutive with previous one, insert it
-        if need_insert {
-            range_map.insert(range.0, range.1);
-        }
     }
 }
 
